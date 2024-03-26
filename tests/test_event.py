@@ -12,6 +12,7 @@ from axis.models.event import Event, EventGroup, EventOperation
 from .event_fixtures import (
     AUDIO_INIT,
     DAYNIGHT_INIT,
+    DOOR_MODE_INIT,
     FENCE_GUARD_INIT,
     FIRST_MESSAGE,
     GLOBAL_SCENE_CHANGE,
@@ -71,6 +72,18 @@ from .event_fixtures import (
                 "type": "DayNight",
                 "state": "1",
                 "tripped": True,
+            },
+        ),
+        (
+            DOOR_MODE_INIT,
+            {
+                "topic": "tns1:Door/State/DoorMode",
+                "source": "DoorToken",
+                "source_idx": "Axis-5fba94a4-8601-4627-bdda-cc408f69e026",
+                "class": "door",
+                "type": "Door Mode",
+                "state": "Accessed",
+                "tripped": False,
             },
         ),
         (

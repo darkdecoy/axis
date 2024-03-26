@@ -31,6 +31,7 @@ class ApiId(enum.StrEnum):
     DISK_MANAGEMENT = "disk-management"
     DISK_NETWORK_SHARE = "disk-network-share"
     DISK_PROPERTIES = "disk-properties"
+    DOOR_CONTROL_ID = "door-control-id"
     DYNAMIC_OVERLAY = "dynamicoverlay"
     EVENT_MQTT_BRIDGE = "event-mqtt-bridge"
     EVENT_STREAMING_OVER_WEBSOCKET = "event-streaming-over-websocket"

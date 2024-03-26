@@ -13,6 +13,7 @@ LOGGER = logging.getLogger(__name__)
 class EventGroup(enum.StrEnum):
     """Logical grouping of events."""
 
+    DOOR = "door"
     INPUT = "input"
     LIGHT = "light"
     MOTION = "motion"
@@ -41,6 +42,14 @@ class EventOperation(enum.StrEnum):
 class EventTopic(enum.StrEnum):
     """Supported event topics."""
 
+    DOOR_ALARM = "tns1:Door/State/DoorAlarm"
+    DOOR_FAULT = "tns1:Door/State/DoorFault"
+    DOOR_LOCK_PHYSICAL = "tns1:Door/State/LockPhysicalState"
+    DOOR_MODE = "tns1:Door/State/DoorMode"
+    DOOR_PHYSICAL_STATE = "tns1:Door/State/DoorPhysicalState"
+    DOOR_TAMPER = "tns1:Door/State/DoorTamper"
+    DOOR_WARNING = "tns1:Door/State/DoorWarning"
+    DOOR_DOUBLE_LOCK_PHYSICAL = "tns1:Door/State/DoubleLockPhysicalState"
     DAY_NIGHT_VISION = "tns1:VideoSource/tnsaxis:DayNightVision"
     FENCE_GUARD = "tnsaxis:CameraApplicationPlatform/FenceGuard"
     LIGHT_STATUS = "tns1:Device/tnsaxis:Light/Status"
@@ -68,6 +77,14 @@ class EventTopic(enum.StrEnum):
 
 
 TOPIC_TO_GROUP = {
+    EventTopic.DOOR_ALARM: EventGroup.DOOR,
+    EventTopic.DOOR_FAULT: EventGroup.DOOR,
+    EventTopic.DOOR_LOCK_PHYSICAL: EventGroup.DOOR,
+    EventTopic.DOOR_MODE: EventGroup.DOOR,
+    EventTopic.DOOR_PHYSICAL_STATE: EventGroup.DOOR,
+    EventTopic.DOOR_TAMPER: EventGroup.DOOR,
+    EventTopic.DOOR_WARNING: EventGroup.DOOR,
+    EventTopic.DOOR_DOUBLE_LOCK_PHYSICAL: EventGroup.DOOR,
     EventTopic.DAY_NIGHT_VISION: EventGroup.LIGHT,
     EventTopic.FENCE_GUARD: EventGroup.MOTION,
     EventTopic.LIGHT_STATUS: EventGroup.LIGHT,
