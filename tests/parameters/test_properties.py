@@ -107,6 +107,79 @@ root.Properties.VirtualInput.VirtualInput=yes
 root.Properties.ZipStream.ZipStream=yes"""
 
 
+PROPERTY_5_20_M7001_RESPONSE = """root.Properties.API.HTTP.Version=3
+root.Properties.API.HTTP.AdminPath=/operator/basic.shtml
+root.Properties.API.Metadata.Metadata=no
+root.Properties.API.Metadata.Version=1.0
+root.Properties.API.RTSP.Version=2.01
+root.Properties.API.RTSP.RTSPAuth=yes
+root.Properties.API.WebService.WebService=yes
+root.Properties.API.WebService.ONVIF.ONVIF=yes
+root.Properties.API.WebService.ONVIF.Version=1.01
+root.Properties.Firmware.BuildNumber=1
+root.Properties.Firmware.BuildDate=Jun 13 2017 14:38
+root.Properties.Firmware.Version=5.20.5
+root.Properties.GuardTour.GuardTour=yes
+root.Properties.HTTPS.HTTPS=yes
+root.Properties.Image.Rotation=0,90,180,270
+root.Properties.Image.Resolution=D1,4CIF,2CIF,CIF,QCIF
+root.Properties.Image.Format=jpeg,mjpeg,h264,bitmap
+root.Properties.Image.NbrOfViews=1
+root.Properties.Motion.Motion=yes
+root.Properties.Motion.MaxNbrOfWindows=10
+root.Properties.PTZ.PTZ=yes
+root.Properties.PTZ.DigitalPTZ=no
+root.Properties.PTZ.DriverManagement=yes
+root.Properties.RemoteService.RemoteService=yes
+root.Properties.RTC.RTC=no
+root.Properties.Serial.Serial=yes
+root.Properties.System.Language=English
+root.Properties.System.HardwareID=163
+root.Properties.System.SerialNumber=ACCC8E1A909D
+root.Properties.System.Architecture=crisv32
+"""
+
+PROPERTY_1_84_1_A9188_RESPONSE = """root.Properties.AlwaysMulticast.AlwaysMulticast=yes
+root.Properties.API.Browser.Language=yes
+root.Properties.API.Browser.RootPwdSetValue=yes
+root.Properties.API.Browser.UserGroup=yes
+root.Properties.API.ClientNotes.ClientNotes=yes
+root.Properties.API.HTTP.AdminPath=/webapp/index.shtml
+root.Properties.API.HTTP.Version=3
+root.Properties.API.OnScreenControls.OnScreenControls=yes
+root.Properties.API.WebService.EntryService=yes
+root.Properties.API.WebService.WebService=yes
+root.Properties.API.WebService.ONVIF.ONVIF=yes
+root.Properties.API.WebService.ONVIF.Version=1.02
+root.Properties.API.WebSocket.RTSP.RTSP=yes
+root.Properties.EmbeddedDevelopment.CacheSize=10485760
+root.Properties.EmbeddedDevelopment.DefaultCacheSize=10485760
+root.Properties.EmbeddedDevelopment.EmbeddedDevelopment=yes
+root.Properties.EmbeddedDevelopment.Version=2.16
+root.Properties.EmbeddedDevelopment.RuleEngine.MultiConfiguration=yes
+root.Properties.Firmware.BuildDate=Mar 03 2020 11:41
+root.Properties.Firmware.BuildNumber=4
+root.Properties.Firmware.Version=1.84.1
+root.Properties.FirmwareManagement.Version=1.0
+root.Properties.HTTPS.HTTPS=yes
+root.Properties.IO.ManualTriggerNbr=17
+root.Properties.LEDControl.LEDControl=yes
+root.Properties.PackageManager.FormatListing=yes
+root.Properties.PackageManager.LicenseKeyManagement=yes
+root.Properties.PackageManager.PackageManager=yes
+root.Properties.RemoteService.RemoteService=no
+root.Properties.RTC.RTC=yes
+root.Properties.Serial.Serial=no
+root.Properties.System.Architecture=mips
+root.Properties.System.HardwareID=72C.1
+root.Properties.System.Language=English
+root.Properties.System.LanguageType=default
+root.Properties.System.SerialNumber=ACCC8ED0A6EC
+root.Properties.System.Soc=Axis Artpec-5
+root.Properties.VirtualInput.VirtualInput=yes
+"""
+
+
 @pytest.fixture
 def property_handler(axis_device: AxisDevice) -> PropertyParameterHandler:
     """Return the param cgi mock object."""
@@ -119,8 +192,8 @@ async def test_property_handler(respx_mock, property_handler: PropertyParameterH
         "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.Properties"},
     ).respond(
-        text=PROPERTY_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PROPERTY_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     assert not property_handler.initialized
     await property_handler.update()
@@ -170,3 +243,24 @@ async def test_property_handler(respx_mock, property_handler: PropertyParameterH
     assert properties.ptz is True
     # assert params[f"{PROPERTIES}.Sensor.PIR"] == "yes"
     assert properties.system_serial_number == "ACCC12345678"
+
+
+@pytest.mark.parametrize(
+    ("property_response"),
+    [PROPERTY_5_20_M7001_RESPONSE, PROPERTY_1_84_1_A9188_RESPONSE],
+)
+async def test_mixed_properties(
+    respx_mock, property_handler: PropertyParameterHandler, property_response
+):
+    """Verify that update ptz works.
+
+    No embedded development provided.
+    """
+    respx_mock.post(
+        "/axis-cgi/param.cgi", data={"action": "list", "group": "root.Properties"}
+    ).respond(
+        content=property_response.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
+
+    await property_handler.update()

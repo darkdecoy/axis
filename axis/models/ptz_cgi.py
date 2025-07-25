@@ -269,8 +269,7 @@ class PtzControlRequest(ApiRequest):
             data["center"] = f"{x},{y}"
         if self.area_zoom:
             x, y, z = self.area_zoom
-            if z < 1:
-                z = 1
+            z = max(z, 1)
             data["areazoom"] = f"{x},{y},{z}"
         if self.center or self.area_zoom:
             if self.image_width:
@@ -308,13 +307,15 @@ class PtzControlRequest(ApiRequest):
             if command_bool is not None:
                 data[key] = "on" if command_bool else "off"
 
-        for key, command_enum in (
-            ("imagerotation", self.image_rotation),
-            ("ircutfilter", self.ir_cut_filter),
-            ("move", self.move),
-        ):
-            if command_enum is not None:
-                data[key] = command_enum
+        data |= {
+            key: command_enum
+            for key, command_enum in (
+                ("imagerotation", self.image_rotation),
+                ("ircutfilter", self.ir_cut_filter),
+                ("move", self.move),
+            )
+            if command_enum is not None
+        }
 
         if self.continuous_pantilt_move:
             pan_speed, tilt_speed = self.continuous_pantilt_move

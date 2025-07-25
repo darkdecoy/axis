@@ -9,22 +9,13 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ..errors import RequestError, raise_error
-from ..models.api import ApiRequest
 from ..models.pwdgrp_cgi import SecondaryGroup
-from ..models.stream_profile import StreamProfile
 from .api_discovery import ApiDiscoveryHandler
-from .api_handler import ApiHandler
-from .applications import (
-    ApplicationsHandler,
-)
+from .applications import ApplicationsHandler
 from .applications.fence_guard import FenceGuardHandler
-from .applications.loitering_guard import (
-    LoiteringGuardHandler,
-)
+from .applications.loitering_guard import LoiteringGuardHandler
 from .applications.motion_guard import MotionGuardHandler
-from .applications.object_analytics import (
-    ObjectAnalyticsHandler,
-)
+from .applications.object_analytics import ObjectAnalyticsHandler
 from .applications.vmd4 import Vmd4Handler
 from .basic_device_info import BasicDeviceInfoHandler
 from .event_instances import EventInstanceHandler
@@ -42,6 +33,9 @@ from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
+    from ..models.api import ApiRequest
+    from ..models.stream_profile import StreamProfile
+    from .api_handler import ApiHandler
 
 LOGGER = logging.getLogger(__name__)
 
@@ -242,13 +236,16 @@ class Vapix:
 
     async def api_request(self, api_request: ApiRequest) -> bytes:
         """Make a request to the device."""
+        params = api_request.params or {}
+        if self.device.config.is_companion:
+            params["Axis-Orig-Sw"] = "true"
         return await self.request(
             method=api_request.method,
             path=api_request.path,
             content=api_request.content,
             data=api_request.data,
             headers=api_request.headers,
-            params=api_request.params,
+            params=params,
         )
 
     async def request(
@@ -276,16 +273,19 @@ class Vapix:
                 timeout=TIME_OUT,
             )
 
-        except httpx.TimeoutException:
-            raise RequestError("Timeout")
+        except httpx.TimeoutException as errt:
+            message = "Timeout"
+            raise RequestError(message) from errt
 
         except httpx.TransportError as errc:
             LOGGER.debug("%s", errc)
-            raise RequestError(f"Connection error: {errc}")
+            message = f"Connection error: {errc}"
+            raise RequestError(message) from errc
 
         except httpx.RequestError as err:
             LOGGER.debug("%s", err)
-            raise RequestError(f"Unknown error: {err}")
+            message = f"Unknown error: {err}"
+            raise RequestError(message) from err
 
         try:
             response.raise_for_status()

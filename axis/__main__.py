@@ -17,13 +17,18 @@ def event_handler(event: axis.models.event.Event) -> None:
 
 
 async def axis_device(
-    host: str, port: int, username: str, password: str
+    host: str, port: int, username: str, password: str, is_companion: bool = False
 ) -> axis.device.AxisDevice:
     """Create a Axis device."""
-    session = AsyncClient(verify=False)
+    session = AsyncClient(verify=False)  # noqa: S501
     device = axis.device.AxisDevice(
         axis.models.configuration.Configuration(
-            session, host, port=port, username=username, password=password
+            session,
+            host,
+            port=port,
+            username=username,
+            password=password,
+            is_companion=is_companion,
         )
     )
 
@@ -71,8 +76,8 @@ async def main(
 
     try:
         if events:
-            while True:
-                await asyncio.sleep(1)
+            done = asyncio.Event()
+            await done.wait()
 
     except asyncio.CancelledError:
         device.stream.stop()

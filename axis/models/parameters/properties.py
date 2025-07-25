@@ -182,14 +182,15 @@ class PropertyParam(ParamItem):
         return cls(
             id="properties",
             api_http_version=data["API"]["HTTP"]["Version"],
-            api_metadata=data["API"]["Metadata"]["Metadata"],
-            api_metadata_version=data["API"]["Metadata"]["Version"],
+            api_metadata=data["API"].get("Metadata", {}).get("Metadata", "no"),
+            api_metadata_version=data["API"].get("Metadata", {}).get("Version", "0.0"),
             api_ptz_presets_version=data["API"]
             .get("PTZ", {})
             .get("Presets", {})
             .get("Version", False),
-            embedded_development=data["EmbeddedDevelopment"]["Version"],
-            # embedded_development=data.get("EmbeddedDevelopment_Version", "0.0"),
+            embedded_development=data.get("EmbeddedDevelopment", {}).get(
+                "Version", "0.0"
+            ),
             firmware_build_date=data["Firmware"]["BuildDate"],
             firmware_build_number=data["Firmware"]["BuildNumber"],
             firmware_version=data["Firmware"]["Version"],

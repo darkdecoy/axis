@@ -49,6 +49,12 @@ def vapix(axis_device: AxisDevice) -> Vapix:
     return axis_device.vapix
 
 
+@pytest.fixture
+def vapix_companion_device(axis_companion_device: AxisDevice) -> Vapix:
+    """Return the vapix object."""
+    return axis_companion_device.vapix
+
+
 def test_vapix_not_initialized(vapix: Vapix) -> None:
     """Test Vapix class without initialising any data."""
     assert dict(vapix.basic_device_info.items()) == {}
@@ -92,8 +98,10 @@ async def test_initialize(respx_mock, vapix: Vapix):
         }
     )
 
-    respx_mock.post("/axis-cgi/param.cgi").respond(text=PARAM_CGI_RESPONSE)
-
+    respx_mock.post("/axis-cgi/param.cgi").respond(
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
     respx_mock.post("/axis-cgi/applications/list.cgi").respond(
         text=APPLICATIONS_RESPONSE,
         headers={"Content-Type": "text/xml"},
@@ -219,14 +227,15 @@ async def test_initialize_api_discovery_unsupported(respx_mock, vapix: Vapix):
 async def test_initialize_param_cgi(respx_mock, vapix: Vapix):
     """Verify that you can list parameters."""
     respx_mock.post("/axis-cgi/param.cgi").respond(
-        text=PARAM_CGI_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
         json=LIGHT_CONTROL_RESPONSE,
     )
     await vapix.initialize_param_cgi()
 
+    assert "Axis-Orig-Sw" not in respx_mock.calls.last.request.url.params
     assert vapix.firmware_version == "9.10.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
@@ -243,11 +252,43 @@ async def test_initialize_param_cgi(respx_mock, vapix: Vapix):
     assert vapix.users.supported
 
 
+async def test_initialize_param_cgi_for_companion_device(
+    respx_mock, vapix_companion_device: Vapix
+):
+    """Verify that you can list parameters."""
+    respx_mock.post("/axis-cgi/param.cgi").respond(
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
+    respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
+        json=LIGHT_CONTROL_RESPONSE,
+    )
+    await vapix_companion_device.initialize_param_cgi()
+
+    assert "Axis-Orig-Sw" in respx_mock.calls.last.request.url.params
+
+    assert vapix_companion_device.firmware_version == "9.10.1"
+    assert vapix_companion_device.product_number == "M1065-LW"
+    assert vapix_companion_device.product_type == "Network Camera"
+    assert vapix_companion_device.serial_number == "ACCC12345678"
+    assert len(vapix_companion_device.streaming_profiles) == 2
+
+    assert len(vapix_companion_device.basic_device_info) == 0
+    assert len(vapix_companion_device.ports.values()) == 1
+    assert len(vapix_companion_device.light_control.values()) == 1
+    assert len(vapix_companion_device.mqtt) == 0
+    assert len(vapix_companion_device.stream_profiles) == 0
+    assert len(vapix_companion_device.params.stream_profile_handler) == 1
+
+    assert vapix_companion_device.users.supported
+
+
 async def test_initialize_params_no_data(respx_mock, vapix: Vapix):
     """Verify that you can list parameters."""
-    param_route = respx_mock.post(
-        "/axis-cgi/param.cgi",
-    ).respond(text="")
+    param_route = respx_mock.post("/axis-cgi/param.cgi").respond(
+        content="".encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
     await vapix.initialize_param_cgi(preload_data=False)
 
     assert param_route.call_count == 4
@@ -256,8 +297,8 @@ async def test_initialize_params_no_data(respx_mock, vapix: Vapix):
 async def test_initialize_applications(respx_mock, vapix: Vapix):
     """Verify you can list and retrieve descriptions of applications."""
     respx_mock.post("/axis-cgi/param.cgi").respond(
-        text=PARAM_CGI_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
         json=LIGHT_CONTROL_RESPONSE,
@@ -296,8 +337,8 @@ async def test_initialize_applications(respx_mock, vapix: Vapix):
 async def test_initialize_applications_unauthorized(respx_mock, vapix: Vapix, code):
     """Verify initialize applications doesnt break on too low credentials."""
     respx_mock.post("/axis-cgi/param.cgi").respond(
-        text=PARAM_CGI_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
         json=LIGHT_CONTROL_RESPONSE,
@@ -313,8 +354,8 @@ async def test_initialize_applications_unauthorized(respx_mock, vapix: Vapix, co
 async def test_initialize_applications_not_running(respx_mock, vapix: Vapix):
     """Verify you can list and retrieve descriptions of applications."""
     respx_mock.post("/axis-cgi/param.cgi").respond(
-        text=PARAM_CGI_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
         json=LIGHT_CONTROL_RESPONSE,
@@ -351,10 +392,10 @@ async def test_initialize_event_instances(respx_mock, vapix: Vapix):
 
 async def test_applications_dont_load_without_params(respx_mock, vapix: Vapix):
     """Applications depends on param cgi to be loaded first."""
-    param_route = respx_mock.post(
-        "/axis-cgi/param.cgi",
-    ).respond(text="key=value")
-
+    param_route = respx_mock.post("/axis-cgi/param.cgi").respond(
+        content="key=value".encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
     applications_route = respx_mock.post("/axis-cgi/applications/list.cgi")
 
     await vapix.initialize_param_cgi(preload_data=False)
@@ -381,7 +422,8 @@ async def test_load_user_groups(respx_mock, vapix: Vapix):
 
     await vapix.load_user_groups()
 
-    assert (user := vapix.user_groups.get("0"))
+    user = vapix.user_groups.get("0")
+    assert user
     assert user.privileges == SecondaryGroup.ADMIN_PTZ
     assert user.admin
     assert user.operator
@@ -412,7 +454,8 @@ ptz=
 
     assert not user_group_route.called
 
-    assert (user := vapix.user_groups.get("0"))
+    user = vapix.user_groups.get("0")
+    assert user
     assert user.privileges == SecondaryGroup.ADMIN
     assert user.admin
     assert user.operator

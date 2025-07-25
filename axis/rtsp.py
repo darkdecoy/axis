@@ -35,6 +35,7 @@ class State(enum.StrEnum):
 
 
 TIME_OUT_LIMIT = 5
+RTP_HEADER_SIZE = 12
 
 
 class RTSPClient(asyncio.Protocol):
@@ -191,6 +192,7 @@ class RTPClient:
             self.callback = callback
             self.data: deque[bytes] = deque()
             self.transport: asyncio.BaseTransport | None = None
+            self.fragment: bool = False
 
         def connection_made(self, transport: asyncio.BaseTransport) -> None:
             """Execute when port is up and listening.
@@ -207,8 +209,19 @@ class RTPClient:
         def datagram_received(self, data: bytes, addr: Any) -> None:
             """Signals when new data is available."""
             if self.callback:
-                self.data.append(data[12:])
-                self.callback(Signal.DATA)
+                payload = data[RTP_HEADER_SIZE:]
+
+                # if the previous packet was a fragment, then merge it
+                if self.fragment:
+                    previous = self.data.pop()
+                    self.data.append(previous + payload)
+                else:
+                    self.data.append(payload)
+
+                # check whether the RTP marker bit is set, if not it is a fragment
+                self.fragment = (data[1] & 0b1 << 7) == 0
+                if not self.fragment:
+                    self.callback(Signal.DATA)
 
 
 class RTSPSession:
@@ -361,11 +374,11 @@ class RTSPSession:
         """RFC 2617."""
         from hashlib import md5
 
-        ha1 = f"{self.username}:{self.realm}:{self.password}"
-        HA1 = md5(ha1.encode("UTF-8")).hexdigest()
-        ha2 = f"{self.method}:{self.url}"
-        HA2 = md5(ha2.encode("UTF-8")).hexdigest()
-        encrypt_response = f"{HA1}:{self.nonce}:{HA2}"
+        _ha1 = f"{self.username}:{self.realm}:{self.password}"
+        ha1 = md5(_ha1.encode("UTF-8")).hexdigest()
+        _ha2 = f"{self.method}:{self.url}"
+        ha2 = md5(_ha2.encode("UTF-8")).hexdigest()
+        encrypt_response = f"{ha1}:{self.nonce}:{ha2}"
         response = md5(encrypt_response.encode("UTF-8")).hexdigest()
 
         digest_auth = "Digest "
@@ -399,12 +412,12 @@ class RTSPMethods:
         """Define message methods."""
         self.session = session
         self.message_methods: dict[str, Callable[[], str]] = {
-            "OPTIONS": self.OPTIONS,
-            "DESCRIBE": self.DESCRIBE,
-            "SETUP": self.SETUP,
-            "PLAY": self.PLAY,
-            "KEEP-ALIVE": self.KEEP_ALIVE,
-            "TEARDOWN": self.TEARDOWN,
+            "OPTIONS": self.options,
+            "DESCRIBE": self.describe,
+            "SETUP": self.setup,
+            "PLAY": self.play,
+            "KEEP-ALIVE": self.keep_alive,
+            "TEARDOWN": self.teardown,
         }
 
     @property
@@ -414,11 +427,11 @@ class RTSPMethods:
         _LOGGER.debug(message)
         return message
 
-    def KEEP_ALIVE(self) -> str:
+    def keep_alive(self) -> str:
         """Keep-Alive messages doesn't need authentication."""
-        return self.OPTIONS(False)
+        return self.options(False)
 
-    def OPTIONS(self, authenticate: bool = True) -> str:
+    def options(self, authenticate: bool = True) -> str:
         """Request options device supports."""
         message = f"OPTIONS {self.session.url} RTSP/1.0\r\n"
         message += self.sequence
@@ -428,7 +441,7 @@ class RTSPMethods:
         message += "\r\n"
         return message
 
-    def DESCRIBE(self) -> str:
+    def describe(self) -> str:
         """Request description of what services RTSP server make available."""
         message = f"DESCRIBE {self.session.url} RTSP/1.0\r\n"
         message += self.sequence
@@ -438,7 +451,7 @@ class RTSPMethods:
         message += "\r\n"
         return message
 
-    def SETUP(self) -> str:
+    def setup(self) -> str:
         """Set up stream transport."""
         message = f"SETUP {self.session.control_url} RTSP/1.0\r\n"
         message += self.sequence
@@ -448,7 +461,7 @@ class RTSPMethods:
         message += "\r\n"
         return message
 
-    def PLAY(self) -> str:
+    def play(self) -> str:
         """RTSP session is ready to send data."""
         message = f"PLAY {self.session.url} RTSP/1.0\r\n"
         message += self.sequence
@@ -458,7 +471,7 @@ class RTSPMethods:
         message += "\r\n"
         return message
 
-    def TEARDOWN(self) -> str:
+    def teardown(self) -> str:
         """Tell device to tear down session."""
         message = f"TEARDOWN {self.session.url} RTSP/1.0\r\n"
         message += self.sequence
@@ -471,7 +484,7 @@ class RTSPMethods:
     @property
     def sequence(self) -> str:
         """Generate sequence string."""
-        return f"CSeq: {str(self.session.sequence)}\r\n"
+        return f"CSeq: {self.session.sequence}\r\n"
 
     @property
     def authentication(self) -> str:
